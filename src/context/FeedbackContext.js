@@ -1,83 +1,93 @@
-import { createContext, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
+import { createContext, useState, useEffect } from 'react';
 
 // create context
 const FeedbackContext = createContext();
 
 // create provider
 export const FeedbackProvider = ({ children }) => {
-  const [feedback, setFeedback] = useState([
-    {
-      id: 1,
-      text: 'This is feedback Item 1',
-      rating: 6,
-    },
-    {
-      id: 2,
-      text: 'This is feedback Item 2',
-      rating: 10,
-    },
-    {
-      id: 3,
-      text: 'This is feedback Item 3',
-      rating: 3,
-    },
-  ]);
+   const [isLoading, setIsLoading] = useState(true);
+   const [feedback, setFeedback] = useState([]);
+   const [feedbackEdit, setFeedbackEdit] = useState({
+      item: {},
+      edit: false,
+   });
 
-  const [feedbackEdit, setFeedbackEdit] = useState({
-    item: {},
-    edit: false,
-  });
+   useEffect(() => {
+      fetchfeedback();
+   }, []);
 
-  /**
-   * To use these functions in a component pass it to the provider value
-   */
+   // fetch feedback
+   const fetchfeedback = async () => {
+      const response = await fetch('/feedback?_sort=id&_order=desc');
+      const data = await response.json();
+      setFeedback(data);
+      setIsLoading(false);
+   };
 
-  // add feedback
-  const addFeedback = (newFeedback) => {
-    newFeedback.id = uuidv4();
-    // get the previous array elements (feebacks) and add new one
-    setFeedback([newFeedback, ...feedback]);
-  };
+   /**
+    * To use these functions in a component pass it to the provider value
+    */
 
-  // delete feedback
-  const deleteFeedback = (id) => {
-    if (window.confirm('Are you sure you want to delete?')) {
-      setFeedback(feedback.filter((item) => item.id !== id));
-    }
-  };
+   // add feedback
+   const addFeedback = async (newFeedback) => {
+      const response = await fetch('/feedback', {
+         method: 'POST',
+         headers: {
+            'Content-Type': 'application/json',
+         },
+         body: JSON.stringify(newFeedback),
+      });
+      const data = await response.json();
+      // get the previous array elements (feebacks) and add new one
+      setFeedback([data, ...feedback]);
+   };
 
-  // update feedback
-  const updateFeedback = (id, newUpdatedItem) => {
-    setFeedback(
-      feedback.map((item) =>
-        item.id === id ? { ...item, ...newUpdatedItem } : item
-      )
-    );
-  };
+   // delete feedback
+   const deleteFeedback = async (id) => {
+      if (window.confirm('Are you sure you want to delete?')) {
+         await fetch(`/feedback/${id}`, { method: 'DELETE' });
+         setFeedback(feedback.filter((item) => item.id !== id));
+      }
+   };
 
-  // edit feedback
-  const editFeedback = (item) => {
-    setFeedbackEdit({
-      item,
-      edit: true,
-    });
-  };
+   // update feedback
+   const updateFeedback = async (id, newUpdatedItem) => {
+      const response = await fetch(`/feedback/${id}`, {
+         method: 'PATCH',
+         headers: {
+            'Content-Type': 'application/json',
+         },
+         body: JSON.stringify(newUpdatedItem),
+      });
+      const data = await response.json();
+      setFeedback(
+         feedback.map((item) => (item.id === id ? { ...item, ...data } : item))
+      );
+   };
 
-  return (
-    <FeedbackContext.Provider
-      value={{
-        feedback,
-        feedbackEdit,
-        addFeedback,
-        deleteFeedback,
-        editFeedback,
-        updateFeedback,
-      }}
-    >
-      {children}
-    </FeedbackContext.Provider>
-  );
+   // edit feedback
+   const editFeedback = (item) => {
+      setFeedbackEdit({
+         item,
+         edit: true,
+      });
+   };
+
+   return (
+      <FeedbackContext.Provider
+         value={{
+            feedback,
+            feedbackEdit,
+            isLoading,
+            addFeedback,
+            deleteFeedback,
+            editFeedback,
+            updateFeedback,
+         }}
+      >
+         {children}
+      </FeedbackContext.Provider>
+   );
 };
 
 export default FeedbackContext;
